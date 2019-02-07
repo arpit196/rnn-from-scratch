@@ -67,7 +67,7 @@ class LSTM_rnn():
             rnn_inputs = tf.nn.embedding_lookup(embs, xs_)
             #
             # initial hidden state
-            init_state = tf.placeholder(shape=[2, None, state_size], dtype=tf.float32, name='initial_state')
+            init_state = tf.placeholder(shape=[3, None, state_size], dtype=tf.float32, name='initial_state')
             # initializer
             xav_init = tf.contrib.layers.xavier_initializer
             state = tf.get_variable('state', shape=[self.state_size])
