@@ -70,7 +70,7 @@ class LSTM_rnn():
             init_state = tf.placeholder(shape=[2, None, state_size], dtype=tf.float32, name='initial_state')
             # initializer
             xav_init = tf.contrib.layers.xavier_initializer
-            state = tf.getvariable('state', shape=[self.state_size])
+            state = tf.get_variable('state', shape=[self.state_size])
             # params
             W = tf.get_variable('W', shape=[4, self.state_size, self.state_size], initializer=xav_init())
             U = tf.get_variable('U', shape=[4, self.state_size, self.state_size], initializer=xav_init())
