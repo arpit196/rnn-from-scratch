@@ -80,7 +80,7 @@ class LSTM_rnn():
             # step - LSTM
             def step(prev, x):
                 # gather previous internal state and output state
-                st_1, ct_1 = tf.unpack(prev)
+                st_1, ct_1, at_1 = tf.unpack(prev)
                 ####
                 # GATES
                 #
