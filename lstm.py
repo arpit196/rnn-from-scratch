@@ -70,6 +70,7 @@ class LSTM_rnn():
             init_state = tf.placeholder(shape=[2, None, state_size], dtype=tf.float32, name='initial_state')
             # initializer
             xav_init = tf.contrib.layers.xavier_initializer
+            state = tf.getvariable('state', shape=[self.state_size])
             # params
             W = tf.get_variable('W', shape=[4, self.state_size, self.state_size], initializer=xav_init())
             U = tf.get_variable('U', shape=[4, self.state_size, self.state_size], initializer=xav_init())
@@ -96,7 +97,8 @@ class LSTM_rnn():
                 ct = ct_1*f + g*i
                 # output state
                 st = tf.tanh(ct)*o
-                at,_ = stacked_multihead_attention(st,states,states) 
+                at,_ = stacked_multihead_attention(st,state,state) 
+                state=tf.concat([state,st],0)
                 return tf.pack([st, ct, at])
             ###
             # here comes the scan operation; wake up!
