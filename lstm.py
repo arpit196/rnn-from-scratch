@@ -80,7 +80,7 @@ class LSTM_rnn():
             # step - LSTM
             def step(prev, x):
                 # gather previous internal state and output state
-                st_1, ct_1, at_1 = tf.unpack(prev)
+                st_1, ct_1, at_1 = tf.unstack(prev,axis=0)
                 ####
                 # GATES
                 #
@@ -99,7 +99,7 @@ class LSTM_rnn():
                 st = tf.tanh(ct)*o
                 at,_ = stacked_multihead_attention(st,state,state) 
                 state=tf.concat([state,st],0)
-                return tf.pack([st, ct, at])
+                return tf.stack([st, ct, at],axis=0)
             ###
             # here comes the scan operation; wake up!
             #   tf.scan(fn, elems, initializer)
