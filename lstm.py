@@ -10,6 +10,40 @@ import sys
 
 BATCH_SIZE = 256
 
+def stacked_multihead_attention(x, keys, values, num_blocks, num_heads, use_residual, is_training, reuse=False):
+    num_hiddens = x.get_shape().as_list()[-1]
+    with tf.variable_scope('stacked_multihead_attention', reuse=reuse):
+        for i in range(num_blocks):
+            with tf.variable_scope('multihead_block_{}'.format(i), reuse=reuse):
+                x, attentions = multihead_attention(x, keys, values, use_residual, is_training, num_heads=num_heads, reuse=reuse)
+                x = feed_forward(x, num_hiddens=num_hiddens, activation=tf.nn.relu, reuse=reuse)
+    return x, attentions
+
+
+def multihead_attention(queries, keys, values, use_residual, is_training, num_units=None, num_heads=8, reuse=False):
+    with tf.variable_scope('multihead-attention', reuse=reuse):
+        if num_units is None:
+            num_units = queries.get_shape().as_list()[-1]
+        Q = linear(queries)
+        K = linear(keys)
+        V = linear(values)
+
+        Q = tf.concat(tf.split(Q, num_heads, axis=2), axis=0)
+        K = tf.concat(tf.split(K, num_heads, axis=2), axis=0)
+        V = tf.concat(tf.split(V, num_heads, axis=2), axis=0)
+
+        Q_K_V, attentions = scaled_dot_product_attention(Q, K, V)
+        Q_K_V = dropout(Q_K_V, is_training)
+        Q_K_V_ = tf.concat(tf.split(Q_K_V, num_heads, axis=0), axis=2)
+
+        output = feed_forward(Q_K_V_, num_units, reuse=reuse)
+
+        if use_residual:
+            output = residual(output, queries, reuse=reuse)
+        # output = normalization(output)
+
+    return output, attentions
+
 class LSTM_rnn():
 
     def __init__(self, state_size, num_classes,
@@ -39,6 +73,7 @@ class LSTM_rnn():
             # params
             W = tf.get_variable('W', shape=[4, self.state_size, self.state_size], initializer=xav_init())
             U = tf.get_variable('U', shape=[4, self.state_size, self.state_size], initializer=xav_init())
+            A = tf.get_variable('A', shape=[4, self.state_size, self.state_size], initializer=xav_init())
             #b = tf.get_variable('b', shape=[self.state_size], initializer=tf.constant_initializer(0.))
             ####
             # step - LSTM
@@ -49,19 +84,20 @@ class LSTM_rnn():
                 # GATES
                 #
                 #  input gate
-                i = tf.sigmoid(tf.matmul(x,U[0]) + tf.matmul(st_1,W[0]))
+                i = tf.sigmoid(tf.matmul(x,U[0]) + tf.matmul(st_1,W[0]) + tf.matmul(at_1,A[0]))
                 #  forget gate
-                f = tf.sigmoid(tf.matmul(x,U[1]) + tf.matmul(st_1,W[1]))
+                f = tf.sigmoid(tf.matmul(x,U[1]) + tf.matmul(st_1,W[1]) + tf.matmul(at_1,A[1]))
                 #  output gate
-                o = tf.sigmoid(tf.matmul(x,U[2]) + tf.matmul(st_1,W[2]))
+                o = tf.sigmoid(tf.matmul(x,U[2]) + tf.matmul(st_1,W[2]) + tf.matmul(at_1,A[2]))
                 #  gate weights
-                g = tf.tanh(tf.matmul(x,U[3]) + tf.matmul(st_1,W[3]))
+                g = tf.tanh(tf.matmul(x,U[3]) + tf.matmul(st_1,W[3]) + tf.matmul(at_1,A[3]))
                 ###
                 # new internal cell state
                 ct = ct_1*f + g*i
                 # output state
                 st = tf.tanh(ct)*o
-                return tf.pack([st, ct])
+                at,_ = stacked_multihead_attention(st,states,states) 
+                return tf.pack([st, ct, at])
             ###
             # here comes the scan operation; wake up!
             #   tf.scan(fn, elems, initializer)
